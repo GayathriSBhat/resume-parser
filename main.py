@@ -1,6 +1,6 @@
 import re
 import pdfplumber
-import spacy
+#import spacy
 from typing import List, Optional
 from pydantic import BaseModel
 import json
@@ -8,7 +8,7 @@ import json
 
 
 # Load spaCy NLP model
-nlp = spacy.load("en_core_web_sm")
+#nlp = spacy.load("en_core_web_sm")
 
 # --- Define a Pydantic model for the extracted data (for validation + standards) ---
 class ResumeData(BaseModel):
@@ -35,6 +35,24 @@ def read_file(file_path: str) -> str:
         raise ValueError("Unsupported file format")
 
 # --- Extractors ---
+
+def extract_name(text: str) -> Optional[str]:
+    # Get the first 5 lines to find the name
+    lines = text.strip().split("\n")
+    for line in lines[:5]:
+        line = line.strip()
+        # Ignore lines that are clearly email, phone, links, etc.
+        if re.search(r'\b[\w.-]+@[\w.-]+\.\w+\b', line):
+            continue
+        if re.search(r'\+?\d[\d\s-]+\d', line):
+            continue
+        if "linkedin.com" in line.lower() or "github.com" in line.lower():
+            continue
+        # Assume first clean line is the name
+        if line:
+            return line
+    return None
+
 def extract_email(text: str) -> Optional[str]:
     match = re.search(r'[\w\.-]+@[\w\.-]+', text)
     return match.group(0) if match else None
@@ -43,12 +61,12 @@ def extract_phone(text: str) -> Optional[str]:
     match = re.search(r'(\+?\d{1,3}[\s-]?)?\(?\d{2,4}\)?[\s-]?\d{3,4}[\s-]?\d{3,4}', text)
     return match.group(0) if match else None
 
-def extract_name(text: str) -> Optional[str]:
-    doc = nlp(text)
-    for ent in doc.ents:
-        if ent.label_ == "PERSON":
-            return ent.text
-    return None
+# def extract_name(text: str) -> Optional[str]:
+#     doc = nlp(text)
+#     for ent in doc.ents:
+#         if ent.label_ == "PERSON":
+#             return ent.text
+#     return None
 
 def extract_skills(text: str, skills_list: List[str]) -> List[str]:
     text = text.lower()
