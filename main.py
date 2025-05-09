@@ -18,13 +18,30 @@ def index():
 
 @app.route("/process", methods=["POST"])
 def ats():
-    doc = request.files['pdf_doc']
-    doc.save(os.path.join(UPLOAD_PATH, "file.pdf"))
-    doc_path = os.path.join(UPLOAD_PATH, "file.pdf")
-    data = _read_file_from_path(doc_path)
-    data = ats_extractor(data)
+    if 'pdf_doc' not in request.files:
+        return "No file part in request", 400
 
-    return render_template('index.html', data = json.loads(data))
+    doc = request.files['pdf_doc']
+
+    if doc.filename == '':
+        return "No file selected", 400
+
+    if not doc.filename.lower().endswith(".pdf"):
+        return "Invalid file format. Please upload a PDF.", 400
+
+    save_path = os.path.join(UPLOAD_PATH, "file.pdf")
+    doc.save(save_path)
+
+    # Check if file was actually saved and is not empty
+    if os.path.getsize(save_path) == 0:
+        return "Uploaded file is empty", 400
+
+    try:
+        data = _read_file_from_path(save_path)
+        data = ats_extractor(data)
+        return render_template('index.html', data=json.loads(data))
+    except Exception as e:
+        return f"An error occurred while processing the PDF: {str(e)}", 500
  
 def _read_file_from_path(path):
     reader = PdfReader(path) 

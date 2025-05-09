@@ -1,49 +1,46 @@
-# import libraries
+import re
+import json
 
-from openai import OpenAI
-import yaml
+def ats_extractor(text):
+    data = {}
 
-api_key = None
-CONFIG_PATH = r"config.yaml"
+    # 1. Full Name (assumed to be first line or near top)
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    data["Full Name"] = lines[0] if lines else "Not Found"
 
-with open(CONFIG_PATH) as file:
-    data = yaml.load(file, Loader=yaml.FullLoader)
-    api_key = data['OPENAI_API_KEY']
+    # 2. Email
+    email = re.search(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", text)
+    data["Email ID"] = email.group(0) if email else "Not Found"
 
-def ats_extractor(resume_data):
+    # 3. GitHub
+    github = re.search(r"https?://(www\.)?github\.com/[^\s)]+", text)
+    data["GitHub Portfolio"] = github.group(0) if github else "Not Found"
 
-    prompt = '''
-    You are an AI bot designed to act as a professional for parsing resumes. You are given with resume and your job is to extract the following information from the resume:
-    1. full name
-    2. email id
-    3. github portfolio
-    4. linkedin id
-    5. employment details
-    6. technical skills
-    7. soft skills
-    Give the extracted information in json format only
-    '''
+    # 4. LinkedIn
+    linkedin = re.search(r"https?://(www\.)?linkedin\.com/in/[^\s)]+", text)
+    data["LinkedIn ID"] = linkedin.group(0) if linkedin else "Not Found"
 
-    openai_client = OpenAI(
-        api_key = api_key
-    )    
+    # 5. Work Experience: look for keywords
+    work_exp_matches = re.findall(r".{0,50}(experience|worked at|employment|internship).{0,100}", text, re.IGNORECASE)
+    data["Work Experience"] = list(set(work_exp_matches)) if work_exp_matches else ["Not Found"]
 
-    messages=[
-        {"role": "system", 
-        "content": prompt}
-        ]
-    
-    user_content = resume_data
-    
-    messages.append({"role": "user", "content": user_content})
+    # 6. Skillset
+    skill_section = re.search(r"(skills|technologies|tools)\s*[:\-]?\s*(.+?)(\n\n|\Z)", text, re.IGNORECASE | re.DOTALL)
+    if skill_section:
+        skills_text = skill_section.group(2)
+        skills = re.split(r",|\n|•|-", skills_text)
+        data["Skillset"] = [s.strip() for s in skills if s.strip()]
+    else:
+        data["Skillset"] = ["Not Found"]
 
-    response = openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                temperature=0.0,
-                max_tokens=1500)
-        
-    data = response.choices[0].message.content
+    # 7. Projects: naive match
+    projects = re.findall(r"(?i)project[:\-]?\s*(.+)", text)
+    if not projects:
+        # Try to match "Projects" section
+        project_section = re.search(r"(projects)\s*[:\-]?\s*(.+?)(\n\n|\Z)", text, re.IGNORECASE | re.DOTALL)
+        if project_section:
+            project_lines = re.split(r"\n|•|-", project_section.group(2))
+            projects = [p.strip() for p in project_lines if p.strip()]
+    data["Projects"] = projects if projects else ["Not Found"]
 
-    #print(data)
-    return data
+    return json.dumps(data, indent=2)

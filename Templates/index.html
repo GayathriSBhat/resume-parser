@@ -53,7 +53,7 @@
                 <p class="mt-6 text-lg leading-8 text-gray-300">Unlock the potential of every application with our advanced resume parser, designed to enhance the speed and accuracy of
                 your hiring decisions.</p>
                 <div class="mt-10 flex items-center gap-x-6">
-                <form action="/process" method="post" enctype="multipart/form-data">
+                <form action="/process" method="post" enctype="multipart/form-data" action="/process">
                     <div class="mt-10 flex flex-col justify-start items-start sm:flex-row sm:items-center  gap-x-6">
                         <button type="submit"
                             class=" my-2 bg-blue-500 px-8 rounded-2xl py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-400/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600">Process</button>
@@ -84,8 +84,10 @@
 
                      <div id="dictionaryValues" class="border border-1 border-white max-w-7xl p-8"></div>
                         
-        {%if data%}
+        {% if data %}
         <script>
+            const parsedData = JSON.parse(`{{ data | tojson | safe }}`);
+
             function displayDictionaryValues(data) {
                 var dictionaryValuesDiv = document.getElementById("dictionaryValues");
                 var html = generateHTML(data);
@@ -94,30 +96,23 @@
 
             function generateHTML(data) {
                 var html = "";
-                var index = 1;
                 for (var key in data) {
                     if (data.hasOwnProperty(key)) {
-                        if (isFinite(key)) {
-                            html += "<p><strong>" + (parseInt(key) + 1) + ":</strong> ";
-                        }
-                        else {
-                            html += "<p><strong>" + key + ":</strong> ";
-                        }
+                        html += "<p><strong>" + key + ":</strong> ";
                         if (typeof data[key] === 'object') {
                             html += generateHTML(data[key]);
                         } else {
                             html += data[key];
                         }
                         html += "</p>";
-                        index++;
                     }
                 }
                 return html;
             }
 
-        displayDictionaryValues(data | tojson | safe);
+            displayDictionaryValues(parsedData);
         </script>
-        {% endif %}
+    {% endif %}
                 </div>
             </div>
         </div>
